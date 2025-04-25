@@ -1,4 +1,4 @@
 # Compartment
-Compartment models
 The primary objective is to understand fundamental aspects of compartment models. A compartmental model is a representation of a complex system based on the division of this system in functional compartments, and model the movement and transformation of substances or entities within a system.
 
+Compartments can be physical boundaries. Think of aircraft traffic flow in and out of an airport. Compartments can be runways, taxiways and aprons. A runway is where aircraft take off and land. A taxiway is the pathway for aircraft to move between runways and other areas of the airport. An apron is the area where aircraft are parked, serviced, and prepared for flights. Insights into the capacity of each compartment and flow in and out of each compartment can be gained from such models. Congestion can be predicted (compartments nearing capacity, or actual flow rates less than expected). Actions can then be taken to route aircraft toward less congested compartments.
