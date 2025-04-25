@@ -1,6 +1,6 @@
 ---
 title: "Compartment models"
-format: html
+format: pdf
 editor: visual
 
 execute: 
@@ -9,9 +9,9 @@ execute:
   echo: false
 ---
 
-This post is written with R Quarto, an open-source scientific and technical publishing system. The code is available at [https://github.com/ylacerte/](https://github.com/ylacerte/Noise)[Compartments](https://github.com/ylacerte/Compartment/)
+This paper is written with R Quarto, an open-source scientific and technical publishing system. The code is available at <https://github.com/ylacerte/Compartment>
 
-## Motivation
+##  Motivation
 
 The primary objective is to understand fundamental aspects of compartment models. A compartmental model is a representation of a complex system based on the division of this system in functional compartments, and model the movement and transformation of substances or entities within a system.
 
@@ -32,6 +32,8 @@ Compartments are defined as stand-alone entities, and flows in and out of each c
 Consider a route from apron to taxiway to runway, thus a system made up of three compartments, each consisting of aircraft. The contents of a compartment changes as a response to an input or an output. The net rate of change (i.e. the difference between input and output), is the basis for writing the governing differential equation(s) for each compartment.
 
 The airport compartment model is based on the epidemiological model called SIR. We will augment the model in three different directions. We will fit the model with actual data and assess system congestion.
+
+{{< pagebreak >}}
 
 ## An example model with 3 compartments
 
@@ -122,15 +124,17 @@ There are no population constraints, i.e. occupancy in a compartment can be nega
 
 $\large{\alpha}$ and $\large{\beta}$ are flows between compartments.
 
-+-----------------------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------+
-| Solve the ODE system via the ode function from deSolve package  | Given                                                                                                                                   |
-+=================================================================+=========================================================================================================================================+
-| $\large{\frac{dX}{dt} = x_{in} - x_{out} - \alpha X}$           | parameters: $\large{\alpha=0.5}$, $\large{\beta=0.1}$, $\large{x_{in}=1}$, $\large{x_{out}=2}$, $\large{y_{in}=2}$, $\large{y_{out}=1}$ |
-|                                                                 |                                                                                                                                         |
-| $\large{\frac{dY}{dt} = y_{in} - y_{out} + \alpha X - \beta Y}$ | initial occupancy: $\large{X=8}$, $\large{Y=2}$, $\large{Z=0}$                                                                          |
-|                                                                 |                                                                                                                                         |
-| $\large{\frac{dZ}{dt} = \beta Y}$                               |                                                                                                                                         |
-+-----------------------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------+
++-----------------------------------------------------------------+----------------------------------------------------------------------------------+
+| Solve the ODE system via the ode function from deSolve package  | Given                                                                            |
++=================================================================+==================================================================================+
+| $\large{\frac{dX}{dt} = x_{in} - x_{out} - \alpha X}$           | parameters: $\large{\alpha=0.5}$, $\large{\beta=0.1}$,                           |
+|                                                                 |                                                                                  |
+| \                                                               | \                                                                                |
+| $\large{\frac{dY}{dt} = y_{in} - y_{out} + \alpha X - \beta Y}$ | $\large{x_{in}=1}$, $\large{x_{out}=2}$, $\large{y_{in}=2}$, $\large{y_{out}=1}$ |
+|                                                                 |                                                                                  |
+| \                                                               | \                                                                                |
+| $\large{\frac{dZ}{dt} = \beta Y}$                               | initial occupancy: $\large{X=8}$, $\large{Y=2}$, $\large{Z=0}$                   |
++-----------------------------------------------------------------+----------------------------------------------------------------------------------+
 
 ```{r, fig.width = 10, fig.height = 4}
 #| echo: false
@@ -149,7 +153,7 @@ $\large{\alpha}$ and $\large{\beta}$ are flows between compartments.
 
 ```
 
-\
+{{< pagebreak >}}
 
 ## Basic model
 
@@ -207,12 +211,16 @@ plot.basic.model()
 +---------------------------------------------------------------------+----------------------------------------------------------------+
 | Solve the ODE system                                                | Given                                                          |
 +=====================================================================+================================================================+
-| $\large{\frac{dA}{dt} = \frac{-\beta T A}{N}}$                      | parameters: $\large{\beta=0.5}$, $\large{\delta=0.1}$          |
+| \                                                                   | parameters: $\large{\beta=0.5}$, $\large{\delta=0.1}$          |
+| $\large{\frac{dA}{dt} = \frac{-\beta T A}{N}}$                      |                                                                |
+|                                                                     | \                                                              |
+| \                                                                   | initial occupancy: $\large{A=8}$, $\large{T=2}$, $\large{R=0}$ |
+| $\large{\frac{dT}{dt} = \frac{\beta T A}{N} - \delta T}$            |                                                                |
 |                                                                     |                                                                |
-| $\large{\frac{dT}{dt} = \frac{\beta T A}{N} - \delta T}$            | initial occupancy: $\large{A=8}$, $\large{T=2}$, $\large{R=0}$ |
-|                                                                     |                                                                |
+| \                                                                   |                                                                |
 | $\large{\frac{dR}{dt} = \delta T}$                                  |                                                                |
 |                                                                     |                                                                |
+| \                                                                   |                                                                |
 | Where:                                                              |                                                                |
 |                                                                     |                                                                |
 | -   $\large{\beta T / N}$ is the flow from Apron to Taxiway         |                                                                |
@@ -241,6 +249,7 @@ plot.basic.model()
 ```
 
 \
+{{< pagebreak >}}
 
 ## Birth / death model
 
@@ -320,10 +329,13 @@ plot.bd.model()
 +==================================================================+===========================================================================+
 | $\large{\mu}$ = birth rate = death rate                          | parameters: $\large{\mu=0.02}$, $\large{\beta=1000}$, $\large{\delta=28}$ |
 |                                                                  |                                                                           |
+| \                                                                | \                                                                         |
 | $\large{\frac{dA}{dt} = \mu N - \frac{-\beta T A}{N} - \mu A}$   | initial occupancy: $\large{A=8}$, $\large{T=2}$, $\large{R=0}$            |
 |                                                                  |                                                                           |
+| \                                                                |                                                                           |
 | $\large{\frac{dT}{dt} = \frac{\beta T A}{N} - \delta T - \mu T}$ |                                                                           |
 |                                                                  |                                                                           |
+| \                                                                |                                                                           |
 | $\large{\frac{dR}{dt} = \delta T - \mu R}$                       |                                                                           |
 +------------------------------------------------------------------+---------------------------------------------------------------------------+
 
@@ -348,6 +360,8 @@ ggplot() + theme_bw() + ylab("Taxiway occupancy (log scale)") +
 
 ```
 
+{{< pagebreak >}}
+
 ## Seasonal model
 
 This model modifies the birth/death model by making $\large{\beta}$ vary over time, $\large{\beta(t) = \beta_0 + \beta_1 cos(2 \pi t)}$.
@@ -364,10 +378,13 @@ plot.bd.model()
 +---------------------------------------------------------------------+---------------------------------------------------------------------------------------------------+
 | Solve the ODE system                                                | Given                                                                                             |
 +=====================================================================+===================================================================================================+
-| $\large{\frac{dA}{dt} = \mu N - \frac{-\beta (t) T A}{N} - \mu A}$  | parameters: $\large{\mu}=.02$, $\large{\delta}=28$, $\large{\beta_0}=1000$, $\large{\beta_1}=400$ |
+| \                                                                   | parameters: $\large{\mu}=.02$, $\large{\delta}=28$, $\large{\beta_0}=1000$, $\large{\beta_1}=400$ |
+| $\large{\frac{dA}{dt} = \mu N - \frac{-\beta (t) T A}{N} - \mu A}$  |                                                                                                   |
+|                                                                     | \                                                                                                 |
+| \                                                                   | initial occupancy: $\large{A=8}$, $\large{T=2}$, $\large{R=0}$                                    |
+| $\large{\frac{dT}{dt} = \frac{\beta(t) T A}{N} - \delta T - \mu T}$ |                                                                                                   |
 |                                                                     |                                                                                                   |
-| $\large{\frac{dT}{dt} = \frac{\beta(t) T A}{N} - \delta T - \mu T}$ | initial occupancy: $\large{A=8}$, $\large{T=2}$, $\large{R=0}$                                    |
-|                                                                     |                                                                                                   |
+| \                                                                   |                                                                                                   |
 | $\large{\frac{dR}{dt} = \delta T - \mu R}$                          |                                                                                                   |
 +---------------------------------------------------------------------+---------------------------------------------------------------------------------------------------+
 
@@ -390,6 +407,8 @@ plot.bd.model()
 
 ```
 
+{{< pagebreak >}}
+
 ## Stochastic model
 
 The basic model is transformed into a system of stochastic differential equations (SDE). We can simulate the SDE using the yuima package (<https://yuimaproject.com/).>
@@ -400,15 +419,17 @@ Focus on stochastic differential equations of the form $dX_t = a(t, X_t) dt + b(
 -   $a(t, X_t)$ is the drift term, and
 -   $b(t, X_t)$ is the diffusion term.
 
-+---------------------------------------------------------------------------------------------------------------+-----------------------------------------------------------+
-| Solve the SDE system                                                                                          | Given                                                     |
-+===============================================================================================================+===========================================================+
-| $\large{\frac{dA}{dt} = \frac{-\beta T A}{N} - \sqrt{\frac{\beta T A}{N}}W_1}$                                | **parameters**: $\beta = 0.5$, $\delta = 0.1$             |
-|                                                                                                               |                                                           |
-| $\large{\frac{dT}{dt} = \frac{\beta T A}{N} - \delta T + \sqrt{\frac{\beta T A}{N}}W_1 - \sqrt{\delta I}W_2}$ | **initial occupancy**: $Apron=8$, $Taxiway=2$, $Runway=0$ |
-|                                                                                                               |                                                           |
-| $\large{\frac{dR}{dt} = \delta T + \sqrt{\delta T}W_2}$                                                       |                                                           |
-+---------------------------------------------------------------------------------------------------------------+-----------------------------------------------------------+
++---------------------------------------------------------------------------------------------------------------+-------------------------------------------------------+
+| Solve the SDE system                                                                                          | Given                                                 |
++===============================================================================================================+=======================================================+
+| $\large{\frac{dA}{dt} = \frac{-\beta T A}{N} - \sqrt{\frac{\beta T A}{N}}W_1}$                                | parameters: $\beta = 0.5$, $\delta = 0.1$             |
+|                                                                                                               |                                                       |
+| \                                                                                                             | \                                                     |
+| $\large{\frac{dT}{dt} = \frac{\beta T A}{N} - \delta T + \sqrt{\frac{\beta T A}{N}}W_1 - \sqrt{\delta I}W_2}$ | initial occupancy: $Apron=8$, $Taxiway=2$, $Runway=0$ |
+|                                                                                                               |                                                       |
+| \                                                                                                             |                                                       |
+| $\large{\frac{dR}{dt} = \delta T + \sqrt{\delta T}W_2}$                                                       |                                                       |
++---------------------------------------------------------------------------------------------------------------+-------------------------------------------------------+
 
 ```{r, fig.width = 10, fig.height = 4}
 #| echo: false 
@@ -448,16 +469,19 @@ Occupancy of each compartment at the end of the simulation.
 
 ```
 
+{{< pagebreak >}}
+
 ## Parameter estimation
 
 The yuima package has functions (lse and qmle) to estimate model parameters. Using the lse function and the above simulated data, the following parameters are estimated.
 
 ```{r}
 #| echo: false 
-df <- data.frame(cbind(beta=sde$est[1], delta=sde$est[1])) 
-df %>% 
-  kbl(row.names = FALSE, format="html") %>%
-  kable_styling()
+sde$est
+#df <- data.frame(cbind(beta=sde$est[1], delta=sde$est[1])) 
+#df %>% 
+#  kbl(row.names = FALSE, format="html") %>%
+#  kable_styling()
 ```
 
 \
@@ -484,7 +508,7 @@ Generally, we would collect operational data, and compare expected vs actual par
 est <- estimate_parameters()
 prm <- data.frame(est$opt)
 colnames(prm) <- c("beta", "delta")
-prm %>% kbl("html") %>% kable_styling()
+prm
 
 ```
 
@@ -511,6 +535,8 @@ The optimized model is shown below, with the sampled data.
 
 ```
 
+{{< pagebreak >}}
+
 ## Assessment
 
 The assessment consists of finding out where there are areas of posible congestion. Some questions that could be asked when assessing the model vs actual data include:
@@ -526,6 +552,8 @@ The assessment consists of finding out where there are areas of posible congesti
 -   Should we decrease $\large{\delta}$ to decrease departure rate?
 
 This model is focused on departure compartments. It is not difficult to add new compartments to the model include departures.
+
+{{< pagebreak >}}
 
 ## References
 
