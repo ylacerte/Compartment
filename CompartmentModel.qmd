@@ -1,0 +1,552 @@
+---
+title: "Compartment models"
+format: html
+editor: visual
+
+execute: 
+  warning: false
+  message: false
+  echo: false
+---
+
+This post is written with R Quarto, an open-source scientific and technical publishing system. The code is available at [https://github.com/ylacerte/](https://github.com/ylacerte/Noise)[Compartments](https://github.com/ylacerte/Compartment/)
+
+## Motivation
+
+The primary objective is to understand fundamental aspects of compartment models. A compartmental model is a representation of a complex system based on the division of this system in functional compartments, and model the movement and transformation of substances or entities within a system.
+
+Some applications include:
+
+-   Fluid flow in chemical engineering,
+
+-   Risk propagation in supply chains,
+
+-   The spread of malware in networks,
+
+-   Physical system state behavior (e.g. working, failing, repaired)
+
+Compartments are defined as stand-alone entities, and flows in and out of each component need to be well understood, typically via differential equations.
+
+<b><i>Compartments can be physical boundaries. Think of aircraft traffic flow in and out of an airport. Compartments can be runways, taxiways and aprons. A runway is where aircraft take off and land. A taxiway is the pathway for aircraft to move between runways and other areas of the airport. An apron is the area where aircraft are parked, serviced, and prepared for flights. Insights into the capacity of each compartment and flow in and out of each compartment can be gained from such models. Congestion can be predicted (compartments nearing capacity, or actual flow rates less than expected). Actions can then be taken to route aircraft toward less congested compartments.</i></b>
+
+Consider a route from apron to taxiway to runway, thus a system made up of three compartments, each consisting of aircraft. The contents of a compartment changes as a response to an input or an output. The net rate of change (i.e. the difference between input and output), is the basis for writing the governing differential equation(s) for each compartment.
+
+The airport compartment model is based on the epidemiological model called SIR. We will augment the model in three different directions. We will fit the model with actual data and assess system congestion.
+
+## An example model with 3 compartments
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+#| echo: false
+
+library(shinyWidgets)
+library(kableExtra)
+library(plotly)
+library(ggplot2)
+library(deSolve)
+library(yuima)
+
+source("C:/Users/ylace/OneDrive/Desktop/STUFF/Compartmental Models/models.R")
+source("C:/Users/ylace/OneDrive/Desktop/STUFF/Compartmental Models/estimates.R")
+
+```
+
+```{r, fig.width = 6, fig.height = 2}
+#| echo: false
+
+plot.example.model <- function() {
+  
+  boxes <- data.frame(
+    xmin=c( 0, 4, 8),
+    xmax=c( 2, 6, 10),
+    ymin=c(1, 1, 1),
+    ymax=c(3, 3, 3)
+  )
+  box.labels <- data.frame(
+    x=c(1, 5, 9),
+    y=c(2, 2, 2),
+    label=c("X", "Y", "Z")
+  )
+  
+  edges <- data.frame(
+    x=c(2, 6),
+    y=c(2, 2),
+    xend=c(4, 8),
+    yend=c(2, 2)
+  )
+  edge.labels <- data.frame(
+    x=c(3, 7),
+    y=c(2, 2),
+    label=c("alpha", "beta")
+  )
+  
+  exogenous.edges <- data.frame(
+    x=c(1, 5, 1, 5),
+    y=c(4, 4, 1, 1),
+    xend=c(1, 5, 1, 5),
+    yend=c(3, 3, 0, 0)
+  )
+  exogenous.labels <- data.frame(
+    x=c(1, 5, 1, 5),
+    y=c(4.2, 4.2, -0.2, -0.2),
+    label=c("x_in", "y_in", "x_out", "y_out")
+  )
+
+  ggplot() + theme_void() + # coord_fixed() +
+    
+    geom_rect(data=boxes, aes(xmin=xmin, xmax=xmax, 
+                              ymin=ymin, ymax=ymax), 
+              fill="grey90") +
+    geom_text(data=box.labels, aes( x=x, y=y, label=label), 
+              fontface="bold", size=4) + 
+    geom_curve(data=edges, aes(x=x, y=y, xend=xend, yend=yend),
+               arrow = arrow(length = unit(0.3, "cm"), type = "closed"),
+               color = "blue", curvature = -0.5 ) +
+    geom_text(data=edge.labels, aes( x=x, y=y, label=label), 
+              parse=TRUE, fontface="bold", size=4) + 
+    
+    geom_curve(data=exogenous.edges, aes(x=x, y=y, xend=xend, yend=yend),
+               arrow = arrow(length = unit(0.3, "cm"), type = "closed"),
+               color = "grey20", curvature = -0.5 ) +
+    geom_text(data=exogenous.labels, aes( x=x, y=y, label=label), 
+              parse=TRUE, fontface="bold", size=4) 
+  
+}
+plot.example.model()
+
+```
+
+$\large{x_{in}}$, $\large{y_{in}}$, $\large{x_{out}}$, and $\large{y_{out}}$ are exogenous flows.
+
+There are no population constraints, i.e. occupancy in a compartment can be negative.
+
+$\large{\alpha}$ and $\large{\beta}$ are flows between compartments.
+
++-----------------------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------+
+| Solve the ODE system via the ode function from deSolve package  | Given                                                                                                                                   |
++=================================================================+=========================================================================================================================================+
+| $\large{\frac{dX}{dt} = x_{in} - x_{out} - \alpha X}$           | parameters: $\large{\alpha=0.5}$, $\large{\beta=0.1}$, $\large{x_{in}=1}$, $\large{x_{out}=2}$, $\large{y_{in}=2}$, $\large{y_{out}=1}$ |
+|                                                                 |                                                                                                                                         |
+| $\large{\frac{dY}{dt} = y_{in} - y_{out} + \alpha X - \beta Y}$ | initial occupancy: $\large{X=8}$, $\large{Y=2}$, $\large{Z=0}$                                                                          |
+|                                                                 |                                                                                                                                         |
+| $\large{\frac{dZ}{dt} = \beta Y}$                               |                                                                                                                                         |
++-----------------------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------+
+
+```{r, fig.width = 10, fig.height = 4}
+#| echo: false
+
+    times <- seq(0, 30, by=.1)
+    parameters <- c(alpha=0.5, beta=0.1, x_in=1, x_out=2, y_in=2,  y_out=1)
+    population <- c(X=8, Y=2, Z=0)
+    predict <- predict.example(parameters=parameters, 
+                               population=population, 
+                               times=times)
+    
+   ggplot() + theme_bw() + ylab("Occupancy") + 
+    geom_line(data=predict, aes(x=time, y=X, color="X")) +
+    geom_line(data=predict, aes(x=time, y=Y, color="Y")) + 
+    geom_line(data=predict, aes(x=time, y=Z, color="Z")) 
+
+```
+
+\
+
+## Basic model
+
+This model modifies the example:
+
+-   There are no exogenous flows.
+
+-   The population is constrained, N is introduced to reflect a fixed population in the model.
+
+This model is a "disguised" SIR model, i.e. "SIR" has been replaced with "ATR" (Apron, Taxiway and Runway).
+
+```{r, fig.width = 6, fig.height = 1}
+#| echo: false
+plot.basic.model <- function() {
+  boxes <- data.frame(
+    xmin=c( 0, 4, 8),
+    xmax=c( 2, 6, 10),
+    ymin=c(1, 1, 1),
+    ymax=c(3, 3, 3)
+  )
+  box.labels <- data.frame(
+    x=c(1, 5, 9),
+    y=c(2, 2, 2),
+    label=c("A", "T", "R")
+  )
+  
+  edges <- data.frame(
+    x=c(2, 6),
+    y=c(2, 2),
+    xend=c(4, 8),
+    yend=c(2, 2)
+  )
+  edge.labels <- data.frame(
+    x=c(2.6, 3.3, 7),
+    y=c(2, 2, 2),
+    label=c("beta", "T/N", "delta")
+  )
+  
+  ggplot() + theme_void() + coord_fixed() +
+    geom_rect(data=boxes, aes(xmin=xmin, xmax=xmax, 
+                                   ymin=ymin, ymax=ymax), 
+              fill="grey90") +
+    geom_text(data=box.labels, aes( x=x, y=y, label=label), 
+              fontface="bold", size=6) + 
+    geom_curve(data=edges, aes(x=x, y=y, xend=xend, yend=yend),
+               arrow = arrow(length = unit(0.3, "cm"), type = "closed"),
+               color = "blue", curvature = -0.5 ) +
+    geom_text(data=edge.labels, aes( x=x, y=y, label=label), 
+              parse=TRUE, fontface="bold", size=6)  
+
+}
+plot.basic.model()
+```
+
++---------------------------------------------------------------------+----------------------------------------------------------------+
+| Solve the ODE system                                                | Given                                                          |
++=====================================================================+================================================================+
+| $\large{\frac{dA}{dt} = \frac{-\beta T A}{N}}$                      | parameters: $\large{\beta=0.5}$, $\large{\delta=0.1}$          |
+|                                                                     |                                                                |
+| $\large{\frac{dT}{dt} = \frac{\beta T A}{N} - \delta T}$            | initial occupancy: $\large{A=8}$, $\large{T=2}$, $\large{R=0}$ |
+|                                                                     |                                                                |
+| $\large{\frac{dR}{dt} = \delta T}$                                  |                                                                |
+|                                                                     |                                                                |
+| Where:                                                              |                                                                |
+|                                                                     |                                                                |
+| -   $\large{\beta T / N}$ is the flow from Apron to Taxiway         |                                                                |
+|                                                                     |                                                                |
+| -   $\large{T/N}$ is the fraction of aircraft on the Taxiway        |                                                                |
+|                                                                     |                                                                |
+| -   $\large{\delta}$ is the flow from Taxiway to Runway             |                                                                |
+|                                                                     |                                                                |
+| -   $\large{N=A+T+R}$ is the total number of aircraft in the model. |                                                                |
++---------------------------------------------------------------------+----------------------------------------------------------------+
+
+```{r, fig.width = 10, fig.height = 4}
+#| echo: false
+  times <- seq(0, 30, by=.1)
+  parameters <- c(beta=0.5, delta=0.01)
+  population <- c(S=8, I=2, R=0)
+
+  predict <- predict.basic(parameters=parameters, 
+                           population=population, 
+                           times=times)
+    
+   ggplot() + theme_bw() + ylab("Occupancy") + 
+    geom_line(data=predict, aes(x=time, y=S, color="Apron")) +
+    geom_line(data=predict, aes(x=time, y=I, color="Taxiway")) + 
+    geom_line(data=predict, aes(x=time, y=R, color="Runway")) 
+```
+
+\
+
+## Birth / death model
+
+This model modifies the example:
+
+-   The airport compartment model does not have to be a closed system. There are exogenous flows representing aircraft entering and leaving the system (birth and death). A proportion of the population is introduced in compartment A. Occupancy of each compartment is reduced by a corresponding proportion.
+
+-   The population is constrained the same way as the basic model.
+
+```{r, , fig.width = 8, fig.height = 2}
+#| echo: false
+plot.bd.model <- function() {
+  
+  boxes <- data.frame(
+    xmin=c( 0, 4, 8),
+    xmax=c( 2, 6, 10),
+    ymin=c(1, 1, 1),
+    ymax=c(3, 3, 3)
+  )
+  box.labels <- data.frame(
+    x=c(1, 5, 9),
+    y=c(2, 2, 2),
+    label=c("A", "T", "R")
+  )
+  
+  edges <- data.frame(
+    x=c(2, 6),
+    y=c(2, 2),
+    xend=c(4, 8),
+    yend=c(2, 2)
+  )
+  edge.labels <- data.frame(
+    x=c(2.7, 3.2, 7),
+    y=c(2, 2, 2),
+    label=c("beta", "T/N", "delta")
+  )
+  
+  exogenous.edges <- data.frame(
+    x=c(1, 1, 5, 9),
+    y=c(4, 1, 1, 1),
+    xend=c(1, 1, 5, 9),
+    yend=c(3, 0, 0, 0)
+  )
+  exogenous.labels <- data.frame(
+    x=c(1, 1, 5, 9),
+    y=c(4.2, -0.2, -0.2, -0.2),
+    label=c("mu_N", "mu_A", "mu_T", "mu_R")
+  )
+
+  ggplot() + 
+    geom_rect(data=boxes, aes(xmin=xmin, xmax=xmax, 
+                              ymin=ymin, ymax=ymax), 
+              fill="grey90") +
+    geom_text(data=box.labels, aes( x=x, y=y, label=label), 
+              fontface="bold", size=4) + 
+    geom_curve(data=edges, aes(x=x, y=y, xend=xend, yend=yend),
+               arrow = arrow(length = unit(0.3, "cm"), type = "closed"),
+               color = "blue", curvature = -0.5 ) +
+    geom_text(data=edge.labels, aes( x=x, y=y, label=label), 
+              parse=TRUE, fontface="bold", size=4) + 
+    
+    geom_curve(data=exogenous.edges, aes(x=x, y=y, xend=xend, yend=yend),
+               arrow = arrow(length = unit(0.3, "cm"), type = "closed"),
+               color = "grey20", curvature = -0.5 ) +
+    geom_text(data=exogenous.labels, aes( x=x, y=y, label=label), 
+              parse=TRUE, fontface="bold", size=4) + 
+    
+    theme_void() + coord_fixed()
+  
+}
+plot.bd.model()
+
+```
+
++------------------------------------------------------------------+---------------------------------------------------------------------------+
+| Solve the ODE system                                             | Given                                                                     |
++==================================================================+===========================================================================+
+| $\large{\mu}$ = birth rate = death rate                          | parameters: $\large{\mu=0.02}$, $\large{\beta=1000}$, $\large{\delta=28}$ |
+|                                                                  |                                                                           |
+| $\large{\frac{dA}{dt} = \mu N - \frac{-\beta T A}{N} - \mu A}$   | initial occupancy: $\large{A=8}$, $\large{T=2}$, $\large{R=0}$            |
+|                                                                  |                                                                           |
+| $\large{\frac{dT}{dt} = \frac{\beta T A}{N} - \delta T - \mu T}$ |                                                                           |
+|                                                                  |                                                                           |
+| $\large{\frac{dR}{dt} = \delta T - \mu R}$                       |                                                                           |
++------------------------------------------------------------------+---------------------------------------------------------------------------+
+
+Only the Taxiway is plotted below, with the y-axis plotted on a log scale. Notice damped oscillations toward an equilibrium.
+
+```{r, fig.width = 10, fig.height = 4}
+#| echo: false   
+
+  times <- seq(0, 30, by=.01)
+  parameters <- c(mu=0.02, beta=1000, delta=28)
+  population <- c(S=8,I=2,R=0)
+  
+  predict <- predict.birthDeath(parameters=parameters, 
+                                 population=population, 
+                                 times=times)
+  
+ggplot() + theme_bw() + ylab("Taxiway occupancy (log scale)") +      
+#  geom_line(data=predict, aes(x=time, y=S, color="Apron")) +     
+#  geom_line(data=predict, aes(x=time, y=R, color="Runway")) +   
+  geom_line(data=predict, aes(x=time, y=I, color="Taxiway")) +
+  scale_y_continuous(trans='log10')
+
+```
+
+## Seasonal model
+
+This model modifies the birth/death model by making $\large{\beta}$ vary over time, $\large{\beta(t) = \beta_0 + \beta_1 cos(2 \pi t)}$.
+
+System utilization is not the same throughout the day, e.g. consider difference between day and night operations.
+
+```{r, fig.width = 8, fig.height = 2}
+#| echo: false 
+
+plot.bd.model()
+
+```
+
++---------------------------------------------------------------------+---------------------------------------------------------------------------------------------------+
+| Solve the ODE system                                                | Given                                                                                             |
++=====================================================================+===================================================================================================+
+| $\large{\frac{dA}{dt} = \mu N - \frac{-\beta (t) T A}{N} - \mu A}$  | parameters: $\large{\mu}=.02$, $\large{\delta}=28$, $\large{\beta_0}=1000$, $\large{\beta_1}=400$ |
+|                                                                     |                                                                                                   |
+| $\large{\frac{dT}{dt} = \frac{\beta(t) T A}{N} - \delta T - \mu T}$ | initial occupancy: $\large{A=8}$, $\large{T=2}$, $\large{R=0}$                                    |
+|                                                                     |                                                                                                   |
+| $\large{\frac{dR}{dt} = \delta T - \mu R}$                          |                                                                                                   |
++---------------------------------------------------------------------+---------------------------------------------------------------------------------------------------+
+
+```{r, fig.width = 10, fig.height = 4}
+#| echo: false 
+
+  times <- seq(0, 30, by=.01)
+  parameters <- c(mu=.02, delta=28, 
+                  beta0=1000, beta1=400)
+  population <- c(S=8,I=2,R=0)
+  predict <- predict.seasonal(parameters=parameters, 
+                              population=population, 
+                              times=times)
+
+  ggplot() + theme_bw() + ylab("Taxiway occupancy (log scale)") +      
+#  geom_line(data=predict, aes(x=time, y=S, color="Apron")) +     
+#  geom_line(data=predict, aes(x=time, y=R, color="Runway")) +   
+  geom_line(data=predict, aes(x=time, y=I, color="Taxiway")) +
+  scale_y_continuous(trans='log10')
+
+```
+
+## Stochastic model
+
+The basic model is transformed into a system of stochastic differential equations (SDE). We can simulate the SDE using the yuima package (<https://yuimaproject.com/).>
+
+Focus on stochastic differential equations of the form $dX_t = a(t, X_t) dt + b(t, X_t) dW_t$, where
+
+-   $dW_t$ is a standard Brownian motion,
+-   $a(t, X_t)$ is the drift term, and
+-   $b(t, X_t)$ is the diffusion term.
+
++---------------------------------------------------------------------------------------------------------------+-----------------------------------------------------------+
+| Solve the SDE system                                                                                          | Given                                                     |
++===============================================================================================================+===========================================================+
+| $\large{\frac{dA}{dt} = \frac{-\beta T A}{N} - \sqrt{\frac{\beta T A}{N}}W_1}$                                | **parameters**: $\beta = 0.5$, $\delta = 0.1$             |
+|                                                                                                               |                                                           |
+| $\large{\frac{dT}{dt} = \frac{\beta T A}{N} - \delta T + \sqrt{\frac{\beta T A}{N}}W_1 - \sqrt{\delta I}W_2}$ | **initial occupancy**: $Apron=8$, $Taxiway=2$, $Runway=0$ |
+|                                                                                                               |                                                           |
+| $\large{\frac{dR}{dt} = \delta T + \sqrt{\delta T}W_2}$                                                       |                                                           |
++---------------------------------------------------------------------------------------------------------------+-----------------------------------------------------------+
+
+```{r, fig.width = 10, fig.height = 4}
+#| echo: false 
+
+  times <- seq(0, 40, by=.1)
+  parameters <- c(beta=0.5, delta=0.1)
+  population <- c(S=8, I=2, R=0)
+  
+  predict <- predict.basic(parameters=parameters, 
+                           population=population, 
+                           times=times)
+
+# rerun the simulation if necessary  
+  good <- FALSE
+  while ( ! good ) {
+      sde <- sde.model(parameters, population, times)
+      good <- ( ! is.null(sde) )
+  }
+
+  ggplot() + theme_bw() + ylab("Occupancy") +      
+  geom_line(data=predict, aes(x=time, y=S, color="Apron")) +     
+  geom_line(data=predict, aes(x=time, y=I, color="Taxiway")) +
+  geom_line(data=predict, aes(x=time, y=R, color="Runway")) + 
+    
+  geom_line(data=sde$traj, aes(x=t, y=I, color="Simulated Taxiway")) 
+
+```
+
+Occupancy of each compartment at the end of the simulation.
+
+```{r}
+#| echo: false 
+  traj <- sde$traj
+  data <- traj[nrow(traj),]
+  colnames(data) <- c("t", "Apron", "Taxiway", "Runway")
+  (data %>% kbl(row.names = FALSE, "simple") %>% kable_styling()) 
+
+```
+
+## Parameter estimation
+
+The yuima package has functions (lse and qmle) to estimate model parameters. Using the lse function and the above simulated data, the following parameters are estimated.
+
+```{r}
+#| echo: false 
+df <- data.frame(cbind(beta=sde$est[1], delta=sde$est[1])) 
+df %>% 
+  kbl(row.names = FALSE, format="html") %>%
+  kable_styling()
+```
+
+\
+Generally, we would collect operational data, and compare expected vs actual parameters. Operations can then be adjusted to address congestion problems. Say we collect data on Taxiway utilization. We estimate the model parameters ($\large{\beta}$ and $\large{\delta}$) associated with the Taxiway equation, i.e. $\large{\frac{dT}{dt} = \frac{\beta T A}{N} - \delta T}$ via the optim() function. We define two functions to minimize/maximize:
+
++----------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| least squares                                                                                | maximum likelihood                                                                                                                                            |
++==============================================================================================+===============================================================================================================================================================+
+| The sum of squares of the data given the model and its parameters: $SS = \sum (data-pred)^2$ | The log-likelihood of the data given the model and its parameters: $LL=\sum dnorm(x, mean, sd,log)$                                                           |
+|                                                                                              |                                                                                                                                                               |
+| where:                                                                                       | where:                                                                                                                                                        |
+|                                                                                              |                                                                                                                                                               |
+| -   pred is the result of the model at each time                                             | -   dnorm is the value of the probability density function for the normal distribution given parameters for x (data point), mean, and sd (standard deviation) |
+| -   data is the value of the data at each time                                               | -   log=TRUE means probabilities p are given as log(p)                                                                                                        |
+|                                                                                              | -   mean=pred is the result of the model at each time                                                                                                         |
+| optim(params, SS) finds the parameters that minimize SS.                                     | -   x=the value of the data at each time                                                                                                                      |
+|                                                                                              | -   sd=1 is the standard deviation                                                                                                                            |
+| params are initial values of the parameters to be optimized.                                 |                                                                                                                                                               |
+|                                                                                              | optim(params, LL) finds the parameters that maximize LL.                                                                                                      |
++----------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------+
+
+```{r}
+#| echo: false 
+est <- estimate_parameters()
+prm <- data.frame(est$opt)
+colnames(prm) <- c("beta", "delta")
+prm %>% kbl("html") %>% kable_styling()
+
+```
+
+Maximum Likelihood Estimator and Least-Squares are essentially identical when the errors are normally distributed with constant variance.
+
+\
+
+The optimized model is shown below, with the sampled data.
+
+```{r, fig.width = 10, fig.height = 4}
+#| echo: false 
+
+  times <- seq(0, 30, by=1/10)
+  parameters <- c(a=est$opt$a[1], b=est$opt$b[1])
+  population <- c(X=9, Y=1, Z=0)
+  out <- est_predict(parameters, population, times)
+
+  ggplot() + theme_bw() + ylab("Occupancy") +      
+  geom_line(data=out, aes(x=time, y=X, color="Apron")) +     
+  geom_line(data=out, aes(x=time, y=Y, color="Taxiway")) +
+  geom_line(data=out, aes(x=time, y=Z, color="Runway")) + 
+    
+  geom_point(data=est$sample, aes(x=time, y=Y, color="Actual Taxiway")) 
+
+```
+
+## Assessment
+
+The assessment consists of finding out where there are areas of posible congestion. Some questions that could be asked when assessing the model vs actual data include:
+
+-   Does the historical model fit the data? Which parameter(s) are very different?
+
+-   Is Taxiway occupancy too high (i.e. exceeds a given threshold)?
+
+-   Is aircraft departure rate (based on Runway occupancy changes over time) adequate?
+
+-   Should we reduce $\large{\beta}$ or increase $\large{\delta}$ to decrease Taxiway occupancy?
+
+-   Should we decrease $\large{\delta}$ to decrease departure rate?
+
+This model is focused on departure compartments. It is not difficult to add new compartments to the model include departures.
+
+## References
+
+<https://www.mdpi.com/2227-7390/10/16/3008>
+
+<https://appliednetsci.springeropen.com/articles/10.1007/s41109-023-00578-z>
+
+<https://epubs.siam.org/doi/epdf/10.1137/1.9781611972481.ch2>
+
+<https://pmc.ncbi.nlm.nih.gov/articles/PMC6002090/>
+
+<https://mitsloan.mit.edu/shared/ods/documents?PublicationDocumentID=9751>
+
+<https://www.mathstat.dal.ca/~tsusko/honours-theses/ziwei-wang.pdf>
+
+<https://sherrytowers.com/2016/02/06/stochastic-compartmental-modelling-with-stochastic-differential-equations-2/>
+
+<https://www.sherrytowers.com/sir_sde_example.R>
+
+<https://math.mcmaster.ca/~bolker/eeid/2010/Ecology/EEID2010_Simulation.pdf>
+
+<https://rpubs.com/choisy/sir>
+
+<https://daphnia.ecology.uga.edu/drakelab/wp-content/uploads/2014/07/likelihood.pdf>

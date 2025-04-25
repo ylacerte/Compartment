@@ -1,0 +1,792 @@
+---
+title: "Compartment models"
+author: "Yves Lacerte"
+date: "`r Sys.Date()`"
+output: 
+  flexdashboard::flex_dashboard:
+    theme: cosmo
+    vertical_layout: fill
+    orientation: rows
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(shinyWidgets)
+library(kableExtra)
+library(plotly)
+library(ggplot2)
+library(deSolve)
+library(yuima)
+
+source("C:/Users/ylace/OneDrive/Desktop/STUFF/Compartmental Models/models.R")
+source("C:/Users/ylace/OneDrive/Desktop/STUFF/Compartmental Models/estimates.R")
+
+RV <- reactiveValues()
+
+```
+
+<b>0.0</b> {data-icon="fa-hockey-puck"}
+=====================================  
+
+Row {}
+-------------------------------------
+
+### <b></b>
+
+The primary objective is to understand fundamental aspects of compartment models. A compartmental model is a representation of a complex system based on the division of this system in functional compartments, and model the movement and transformation of substances or entities within a system.    
+
+Some applications include:
+ 
+  - Fluid flow in chemical engineering, 
+  
+  - Risk propagation in supply chains, 
+  
+  - The spread of malware in networks,
+  
+  - Physical system state behavior (e.g. working, failing, repaired)
+
+Compartments are defined as stand-alone entities, and flows in and out of each component need to be well understood, typically via differential equations.
+
+<b><i>Compartments can be physical boundaries. Think of aircraft traffic flow in and out of an airport. Compartments can be runways, taxiways and aprons. A runway is where aircraft take off and land. A taxiway is the pathway for aircraft to move between runways and other areas of the airport. An apron is the area where aircraft are parked, serviced, and prepared for flights. Insights into the capacity of each compartment and flow in and out of each compartment can be gained from such models. Congestion can be predicted (compartments nearing capacity, or actual flow rates less than expected). Actions can then be taken to route aircraft toward less congested compartments.</i></b>
+
+Consider a route from apron to taxiway to runway, thus a system made up of three compartments, each consisting of aircraft. The contents of a container changes as a response to an input or an output. The net rate of change (i.e. the difference between input and output), is the basis for writing the governing differential equation(s) for each compartment.
+
+The airport compartment model is based on the epidemiological model called SIR. We will augment the model in three different directions. We will fit the model with actual data and assess system congestion. 
+
+
+
+<b>0.1</b> {data-icon="fa-hockey-puck"}
+=====================================  
+
+Row {}
+-------------------------------------
+
+### <b>An example: 3 compartment model</b>
+```{r, echo=FALSE}
+plot.model <- function() {
+  
+  boxes <- data.frame(
+    xmin=c( 0, 4, 8),
+    xmax=c( 2, 6, 10),
+    ymin=c(1, 1, 1),
+    ymax=c(3, 3, 3)
+  )
+  box.labels <- data.frame(
+    x=c(1, 5, 9),
+    y=c(2, 2, 2),
+    label=c("X", "Y", "Z")
+  )
+  
+  edges <- data.frame(
+    x=c(2, 6),
+    y=c(2, 2),
+    xend=c(4, 8),
+    yend=c(2, 2)
+  )
+  edge.labels <- data.frame(
+    x=c(3, 7),
+    y=c(2, 2),
+    label=c("alpha", "beta")
+  )
+  
+  exogenous.edges <- data.frame(
+    x=c(1, 5, 1, 5),
+    y=c(4, 4, 1, 1),
+    xend=c(1, 5, 1, 5),
+    yend=c(3, 3, 0, 0)
+  )
+  exogenous.labels <- data.frame(
+    x=c(1, 5, 1, 5),
+    y=c(4.2, 4.2, -0.2, -0.2),
+    label=c("x_in", "y_in", "x_out", "y_out")
+  )
+
+  ggplot() + 
+    geom_rect(data=boxes, aes(xmin=xmin, xmax=xmax, 
+                              ymin=ymin, ymax=ymax), 
+              fill="grey90") +
+    geom_text(data=box.labels, aes( x=x, y=y, label=label), 
+              fontface="bold", size=4) + 
+    geom_curve(data=edges, aes(x=x, y=y, xend=xend, yend=yend),
+               arrow = arrow(length = unit(0.3, "cm"), type = "closed"),
+               color = "blue", curvature = -0.5 ) +
+    geom_text(data=edge.labels, aes( x=x, y=y, label=label), 
+              parse=TRUE, fontface="bold", size=4) + 
+    
+    geom_curve(data=exogenous.edges, aes(x=x, y=y, xend=xend, yend=yend),
+               arrow = arrow(length = unit(0.3, "cm"), type = "closed"),
+               color = "grey20", curvature = -0.5 ) +
+    geom_text(data=exogenous.labels, aes( x=x, y=y, label=label), 
+              parse=TRUE, fontface="bold", size=4) + 
+    
+    theme_void() + coord_fixed()
+  
+}
+plot.model()
+```
+
+
+### <b></b>
+
+$x_{in}$, $y_{in}$, $x_{out}$, and $y_{out}$ are exogenous flows.
+
+No population constraints.
+
+$\alpha$ and $\beta$ are flows between compartments. 
+
+The differential equations are:
+
+$\large{\frac{dX}{dt} = x_{in} - x_{out} - \alpha X}$
+
+$\large{\frac{dY}{dt} = y_{in} - y_{out} + \alpha X - \beta Y}$
+
+$\large{\frac{dZ}{dt} = \beta Y}$
+
+
+
+Row {data-height=300}
+-------------------------------------
+
+### <b>Solve the ODE system via the ode function from deSolve package</b>
+```{r, echo=FALSE}
+    times <- seq(0, 20, by=.1)
+    parameters <- c(alpha=0.5, beta=0.1, x_in=1, x_out=2, y_in=2,  y_out=1)
+    population <- c(X=19, Y=5, Z=0)
+    predict <- predict.example(parameters=parameters, 
+                               population=population, 
+                               times=times)
+    plot_ly(data=predict, type='scatter', mode='lines', showlegend=TRUE) %>%
+      add_trace(x=~time,y=~X, name="X") %>%
+      add_trace(x=~time,y=~Y, name="Y") %>%
+      add_trace(x=~time,y=~Z, name="Z") %>%
+      layout(yaxis=list(title="population"))
+
+```
+
+###
+
+Set parameters: $\alpha=0.5$, $\beta=0.1$, $x_{in}=1$, $x_{out}=2$, $y_{in}=2$,  $y_{out}=1$)
+
+Set initial population: $X=19$, $Y=5$, $Z=0$
+
+
+<b>1</b> {data-icon="fa-hockey-puck"}
+=====================================  
+
+Row {}
+-------------------------------------
+
+### <b>Basic model</b>
+
+$\frac{dA}{dt} = \frac{-\beta T A}{N}$
+
+$\frac{dT}{dt} = \frac{\beta T A}{N} - \delta T$
+
+$\frac{dR}{dt} = \delta T$
+
+$\beta T / N$ is the flow from Apron to Taxiway
+
+$\delta$ is the flow from  Taxiway to Runway
+
+$T/N$ is the fraction of aircraft on the Taxiway. 
+
+$N$ is the total number of aircraft in the model.
+
+```{r, echo=FALSE}
+```
+
+### <b></b>
+
+```{r, echo=FALSE}
+
+plotBasicModel <- function() {
+  rectangles <- data.frame(
+    xmin=c(5,3,1),
+    xmax=c(7,5,3),
+    ymin=c(10,12,14),
+    ymax=c(12,14,16)
+  )  
+  
+  box.labels <- data.frame(
+    x=c(6,4,2),
+    y=c(11,13,15),
+    label=c("Runway", "Taxiway", "Apron")
+  )
+  
+  curves <- data.frame(
+    x=c(3,5),
+    y=c(15,13),
+    xend=c(4,6),
+    yend=c(14,12)
+  )
+  
+  curve.labels <- data.frame(
+    x=c(4, 4.32, 6),
+    y=c(15, 15, 13),
+    label=c("beta", "T/N", "delta")
+  )
+
+  ggplot() + 
+    geom_rect(data=rectangles, aes(xmin=xmin, xmax=xmax, 
+                                   ymin=ymin, ymax=ymax), 
+              fill="grey90") +
+    geom_text(data=box.labels, aes( x=x, y=y, label=label), 
+              fontface="bold", size=6) + 
+    geom_curve(data=curves, aes(x=x, y=y, xend=xend, yend=yend),
+               arrow = arrow(length = unit(0.3, "cm"), type = "closed"),
+               color = "blue", curvature = -0.5 ) +
+    geom_text(data=curve.labels, aes( x=x, y=y, label=label), 
+              parse=TRUE, fontface="bold", size=6) + 
+    theme_void()
+}
+plotBasicModel()
+```
+
+### <b></b>
+N is introduced to reflect a fixed number of aircraft in the model.
+
+Is the Taxiway capacity exceeded? Is aircraft departure rate adequate?
+
+Fine tuning: 
+
+- Reduce $\beta$ or increase $\delta$ to decrease Taxiway occupancy.
+- Decrease $\delta$ to decrease departure rate 
+
+Row {data-height=600}
+-------------------------------------
+
+### <b></b>
+
+```{r, echo=FALSE}
+
+HTML("<b>Parameters</b><br>")
+tags$div(numericInput("beta", HTML("<b>&beta;</b>"), 0.5), 
+         style="width: 30%; display:inline-block")
+tags$div(numericInput("delta", HTML("<b>&delta;</b>"), 0.1), 
+         style="width: 30%; display:inline-block")
+
+HTML("<br><br><b>Initial conditions</b><br>")
+tags$div(numericInput("S", HTML("<b>Apron</b>"), 8), 
+         style="width: 30%; display:inline-block")
+tags$div(numericInput("I", HTML("<b>Taxiway</b>"), 2), 
+         style="width: 30%; display:inline-block")
+tags$div(numericInput("R", HTML("<b>Runway</b>"), 0), 
+         style="width: 30%; display:inline-block")
+
+HTML("<br>")
+tags$div(actionButton("reset", HTML("<b>Reset</b>")), 
+         style="width: 30%; display:inline-block")
+
+```
+
+```{r, echo=FALSE}
+observeEvent(input$reset,{
+  updateNumericInput(session,"beta", value=0.5)
+  updateNumericInput(session,"delta", value=0.1)
+  
+  updateNumericInput(session,"S", value=8)
+  updateNumericInput(session,"I", value=2)
+  updateNumericInput(session,"R", value=0)
+})
+```
+
+### <b></b>
+
+```{r, echo=FALSE}
+renderPlotly({
+  
+  times <- seq(0, 40, by=1/100)
+  parameters <- c(beta=input$beta, delta=input$delta)
+  population <- c(S=input$S,I=input$I,R=input$R)
+  predict <- predict.basic(parameters=parameters, 
+                           population=population, 
+                           times=times)
+  
+  RV$out <- predict
+  
+  plot_ly(type='scatter', mode='lines', showlegend=TRUE) %>%
+    add_trace(data=RV$out, x=~time,y=~S, name="Apron") %>%
+    add_trace(data=RV$out, x=~time,y=~I, name="Taxiway") %>%
+    add_trace(data=RV$out, x=~time,y=~R, name="Runway") %>%
+    layout(yaxis=list(title="number of aircraft"))
+})
+
+```
+
+### <b></b>
+
+```{r, echo=FALSE}
+
+renderPlotly({
+  
+  plot_ly(type='scatter', mode='lines', showlegend=FALSE) %>%
+    add_trace(data=RV$out, x=~S,y=~I, name="Apron vs Taxiway") %>%
+    layout(xaxis=list(title = "Apron"), yaxis=list(title = "Taxiway"))
+})
+
+```
+
+
+
+<b>2</b> {data-icon="fa-hockey-puck"}
+=====================================  
+
+Row {}
+-------------------------------------
+
+### <b>Extension of the basic model</b>
+
+Add a birth / death rate, i.e.  $\mu$ = birth rate = death rate.
+<br><br>
+$\frac{dA}{dt} = \mu N - \frac{-\beta T A}{N} - \mu A$,
+
+$\frac{dT}{dt} = \frac{\beta T A}{N} - \delta T - \mu T$,
+
+$\frac{dR}{dt} = \delta T - \mu R$
+
+
+### <b></b>
+
+The airport compartment model does not have to be a closed system. Aircraft can enter from outside the system and leave the system. $\mu$ represents exogenous flows in and out of the compartments.
+
+```{r, echo=FALSE}
+```
+
+### <b></b>
+
+Notice damped oscillations toward an equilibrium.
+
+```{r, echo=FALSE}
+```
+
+
+Row {}
+-------------------------------------
+
+### <b></b>
+
+```{r, echo=FALSE}
+
+HTML("<b>Parameters</b><br>")
+tags$div(numericInput("mu2", HTML("<b>&mu;</b>"), 1/50), 
+         style="width: 30%; display:inline-block")
+tags$div(numericInput("beta2", HTML("<b>&beta;</b>"), 1000), 
+         style="width: 30%; display:inline-block")
+tags$div(numericInput("delta2", HTML("<b>&delta;</b>"), 365/13), 
+         style="width: 30%; display:inline-block")
+
+HTML("<br><br><b>Initial conditions</b><br>")
+tags$div(numericInput("S2", HTML("<b>Apron</b>"), .06*1000), 
+         style="width: 30%; display:inline-block")
+tags$div(numericInput("I2", HTML("<b>Taxiway</b>"), .001*1000), 
+         style="width: 30%; display:inline-block")
+tags$div(numericInput("R2", HTML("<b>Runway</b>"), 0), 
+         style="width: 30%; display:inline-block")
+
+HTML("<br>")
+tags$div(actionButton("reset2", HTML("<b>Reset</b>")), 
+         style="width: 30%; display:inline-block")
+
+```
+
+```{r, echo=FALSE}
+observeEvent(input$reset2,{
+  updateNumericInput(session,"mu2", value=0.02)
+  updateNumericInput(session,"beta2", value=1000)
+  updateNumericInput(session,"delta2", value=365/13)
+  
+  updateNumericInput(session,"S2", value=.06*1000)
+  updateNumericInput(session,"I2", value=.001*1000)
+  updateNumericInput(session,"R2", value=0)
+})
+```
+### <b></b>
+
+```{r, echo=FALSE}
+renderPlotly({
+  
+  times <- seq(0, 15, by=.001)
+  parameters <- c(mu=input$mu2, beta=input$beta2, delta=input$delta2)
+  population <- c(S=input$S2,I=input$I2,R=input$R2)
+  predict <- predict.birthDeath(parameters=parameters, 
+                                 population=population, 
+                                 times=times)
+
+  RV$out2 <- predict
+  
+  plot_ly(type='scatter', mode='lines', showlegend=FALSE) %>%
+#    add_trace(data=RV$out2, x=~time,y=~S, name="S") %>%
+    add_trace(data=RV$out2, x=~time,y=~I, name="I") %>%
+#    add_trace(data=RV$out2, x=~time,y=~R, name="R") %>%
+    layout(yaxis=list(title="Taxiway occupancy (log scale)", type='log'))
+})
+
+```
+
+### <b></b>
+
+```{r, echo=FALSE}
+
+renderPlotly({
+  data <- RV$out2[RV$out2$time > 10,]
+  plot_ly(type='scatter', mode='lines', showlegend=FALSE) %>%
+    add_trace(data=data, x=~S,y=~I, name="S vs I") %>%
+    layout(yaxis=list(title="Taxiway occupancy"),
+           xaxis=list(title="Apron occupancy"))
+})
+
+```
+
+
+<b>3</b> {data-icon="fa-hockey-puck"}
+=====================================  
+
+Row {}
+-------------------------------------
+
+### <b>Further extension</b>
+
+Add a seasonal component, i.e. $\beta$ varies over time: $\beta(t) = \beta_0 + \beta_1 cos(2 \pi t)$
+<br><br>
+$\frac{dA}{dt} = \mu N - \frac{-\beta (t) T A}{N} - \mu A$,
+
+$\frac{dT}{dt} = \frac{\beta(t) T A}{N} - \delta T - \mu T$,
+
+$\frac{dR}{dt} = \delta T - \mu R$
+
+
+### <b></b>
+
+```{r, echo=FALSE}
+tags$div(numericInput("b0", HTML("<b>&beta;<sub>0</sub></b>"), 1000), 
+         style="width: 30%; display:inline-block")
+tags$div(numericInput("b1", HTML("<b>&beta;<sub>1</sub></b>"), 400), 
+         style="width: 30%; display:inline-block")
+
+```
+
+### <b></b>
+
+System utilization is not the same throughout the day, e.g. consider difference between day and night operations. 
+
+```{r, echo=FALSE}
+```
+
+
+Row {}
+-------------------------------------
+
+### <b></b>
+
+```{r, echo=FALSE}
+
+HTML("<b>Parameters</b><br>")
+tags$div(numericInput("mu3", HTML("<b>&mu;</b>"), 1/50), 
+         style="width: 30%; display:inline-block")
+tags$div(numericInput("beta3", HTML("<b>&beta;</b>"), NA), 
+         style="width: 30%; display:inline-block")
+tags$div(numericInput("delta3", HTML("<b>&delta;</b>"), 365/13), 
+         style="width: 30%; display:inline-block")
+
+HTML("<br><br><b>Initial conditions</b><br>")
+tags$div(numericInput("S3", HTML("<b>Apron</b>"), .06*1000), 
+         style="width: 30%; display:inline-block")
+tags$div(numericInput("I3", HTML("<b>Taxiway</b>"), .001*1000), 
+         style="width: 30%; display:inline-block")
+tags$div(numericInput("R3", HTML("<b>Runway</b>"), 0), 
+         style="width: 30%; display:inline-block")
+
+HTML("<br>")
+tags$div(actionButton("reset3", HTML("<b>Reset</b>")), 
+         style="width: 30%; display:inline-block")
+
+```
+
+```{r, echo=FALSE}
+observeEvent(input$reset3,{
+  updateNumericInput(session,"mu3", value=0.02)
+  updateNumericInput(session,"beta3", value=1000)
+  updateNumericInput(session,"delta3", value=365/13)
+  
+  updateNumericInput(session,"b0", value=1000)
+  updateNumericInput(session,"b1", value=400)
+  
+  updateNumericInput(session,"S3", value=.06*1000)
+  updateNumericInput(session,"I3", value=.001*1000)
+  updateNumericInput(session,"R3", value=0)
+})
+```
+
+### <b></b>
+
+```{r, echo=FALSE}
+renderPlotly({
+  
+  times <- seq(0, 100, by=1/100)
+  parameters <- c(mu=input$mu3, delta=input$delta3, 
+                  beta0=input$b0, beta1=input$b1)
+  population <- c(S=input$S3,I=input$I3,R=input$R3)
+  predict <- predict.seasonal(parameters=parameters, 
+                              population=population, 
+                              times=times)
+
+  RV$out3 <- predict
+  data <- RV$out3[which(RV$out3$time >= 80),]
+
+  plot_ly(data=data, type='scatter', mode='lines', showlegend=FALSE) %>%
+#    add_trace(x=~time,y=~S, name="S") %>%
+    add_trace(x=~time,y=~I, name="I") %>%
+#    add_trace(x=~time,y=~R, name="R") %>%
+    layout(yaxis=list(title="Taxiway Occupancy (log scale)", type="log"))
+})
+
+```
+
+### <b></b>
+
+```{r, echo=FALSE}
+
+renderPlotly({
+
+  data <- RV$out3[which(RV$out3$time >= 50),]
+  plot_ly(type='scatter', mode='lines', showlegend=FALSE) %>%
+    add_trace(data=data, x=~S,y=~I, name="S vs I") %>%
+    layout(yaxis=list(title="Taxiway Occupancy"),
+           xaxis=list(title="Apron Occupancy"))
+})
+
+```
+
+
+<b>4</b> {data-icon="fa-hockey-puck"}
+=====================================  
+
+Row {}
+-------------------------------------
+### <b></b>
+The basic model is transformed into a stochastic differential equation (SDE). Simulate the SDE using the yuima package (https://yuimaproject.com/).
+
+Focus on stochastic differential equations of the form $dX_t = a(t, X_t) dt + b(t, X_t) dW_t$, where 
+
+  - $dW_t$ is a standard Brownian motion,
+  - $a(t, X_t)$ is the drift term, and
+  - $b(t, X_t)$ is the diffusion term.
+
+### <b></b>
+
+$\frac{dA}{dt} = \frac{-\beta T A}{N} - \sqrt{\frac{\beta T A}{N}}W_1$,
+
+$\frac{dT}{dt} = \frac{\beta T A}{N} - \delta T + \sqrt{\frac{\beta T A}{N}}W_1 - \sqrt{\delta I}W_2$,
+
+$\frac{dR}{dt} = \delta T + \sqrt{\delta T}W_2$
+
+<br>
+Let us fix the parameters: $\beta = 0.5$, $\delta = 0.1$ 
+
+And initial occupancy: $Apron=8$, $Taxiway=2$, $Runway=0$
+
+```{r, echo=FALSE}
+```
+
+###
+
+<br>
+```{r, echo=FALSE}
+actionButton("simulate", "Simulate Taxiway operations")
+```
+
+```{r, echo=FALSE}
+renderUI({ 
+ traj <- RV$sde$traj
+ if ( ! is.null(traj) ) {
+  data <- traj[nrow(traj),]
+  colnames(data) <- c("t", "Apron", "Taxiway", "Runway")
+  HTML(data %>% kbl() %>% kable_styling()) 
+ }
+})
+```
+
+Row {}
+-------------------------------------
+### <b></b>
+
+```{r, echo=FALSE}
+```
+
+```{r, echo=FALSE}
+
+# stochastic differential equation
+observeEvent(input$simulate, {
+
+  times <- seq(0, 40, by=.1)
+  parameters <- c(beta=0.5, delta=0.1)
+  population <- c(S=8, I=2, R=0)
+  predict <- predict.basic(parameters=parameters, 
+                           population=population, 
+                           times=times)
+
+RV$p <- plot_ly(type='scatter', mode='lines', showlegend=TRUE) %>%
+      add_trace(data=predict,x=~time,y=~S, name="Apron") %>%
+      add_trace(data=predict,x=~time,y=~I, name="Taxiway") %>%
+      add_trace(data=predict,x=~time,y=~R, name="Runway") %>%
+      layout(yaxis=list(title="Population"))
+  
+# rerun the simulation if necessary  
+good <- FALSE
+while ( ! good ) {
+  sde <- sde.model(parameters, population, times)
+  good <- ( ! is.null(sde) )
+}
+
+RV$sde <- sde
+
+RV$p <- RV$p %>%
+#      add_trace(data=p.df, x=~t, y=~S, name="S (sim)")  %>%
+      add_trace(data=sde$traj, x=~t, y=~I, name="I (sim)", showlegend=FALSE)  # %>%
+#      add_trace(data=p.df, x=~t, y=~R, name="R (sim)") 
+
+})
+
+```
+
+```{r, echo=FALSE}
+  renderPlotly({ RV$p })
+```
+
+### <b>Estimate parameters</b>
+We use simulated data to estimate model parameters. Generally, we would collect operational data, and compare expected vs actual parameters. Operations can then be adjusted to address congestion problems.   
+
+```{r, echo=FALSE}
+renderUI({
+  
+  if( ! is.null(RV$sde$est) ) {
+      HTML(t(RV$sde$est) %>% kbl() %>% kable_styling())
+  } else {
+      HTML("no estimates, rerun simulation")
+  }
+})
+```
+
+<b>5</b> {data-icon="fa-hockey-puck"}
+=====================================  
+
+Row {}
+-------------------------------------
+### <b></b>
+Say we collected data on Taxiway utilization. We can estimate the model parameters associated with the Taxiway equation, i.e. $\frac{dT}{dt} = \frac{\beta T A}{N} - \delta T$
+
+### <b></b>
+We will estimate the parameters with the function optim(). The function requires two input: 
+
+  - Initial values for the parameters to be optimized over.
+  - A function to be minimized (or maximized).
+
+We will define two functions: 1) least squares and 2) maximum likelihood. 
+
+### <b></b>
+
+``` {r, echo=FALSE}
+est <- estimate_parameters()
+prm <- data.frame(est$opt)
+colnames(prm) <- c("beta", "delta")
+HTML(prm %>% kbl() %>% kable_styling())
+```
+Maximum Likelihood Estimator and Least-Squares are essentially identical when the errors are normal with constant variance.
+
+
+
+Row {}
+-------------------------------------
+
+### <b>Optimized parameters</b>
+``` {r, echo=FALSE}
+
+  times <- est$sample$time
+  parameters <- c(a=est$opt$a[1], b=est$opt$b[1])
+  population <- c(X=9, Y=1, Z=0)
+  out <- est_predict(parameters, population, times)
+  
+  plot_ly(showlegend=TRUE) %>%
+    add_trace(type='scatter', mode='lines',  
+              data=out, x=~time,y=~X, name="X") %>%
+    add_trace(type='scatter', mode='lines',  
+              data=out, x=~time,y=~Y, name="Y") %>%
+    add_trace(type='scatter', mode='lines',  
+              data=out, x=~time,y=~Z, name="Z") %>%
+    add_trace(type='scatter', mode='markers', 
+              data=est$sample, x=~time,y=~Y, name="sample") %>%
+    layout(yaxis=list(title="aircraft"))
+
+```
+
+### <b></b>
+
+
+
+<b>6</b> {data-icon="fa-hockey-puck"}
+=====================================  
+
+Row {}
+-------------------------------------
+
+### <b>Least squares estimation</b>
+The sum of squares of the data given the model and its parameters
+
+$\sum (data-pred)^2$
+
+where: 
+
+  - pred is the result of the model at each time
+  - data is the value of the data at each time
+
+optim(params, SS) finds the parameters that minimize the sum of squares.
+
+
+### <b>Maximum likelihood estimation</b>
+The log-likelihood of the data given the model and its parameters
+
+$\sum dnorm(x=data, mean=pred, sd=sd,log=TRUE)$
+
+where:
+
+  - dnorm is the value of the probability density function for the normal distribution given parameters for x (data point), mean, and sd (standard deviation)
+  - log=TRUE means probabilities p are given as log(p)
+  - pred is the result of the model at each time
+  - data is the value of the data at each time
+
+optim(params, loglik) finds the parameters that maximize the log-likelihood.
+
+  
+  
+
+<b>Ref</b> {data-icon="fa-hockey-puck"}
+=====================================  
+
+Row {}
+-------------------------------------
+### <b>References</b>
+
+https://www.mdpi.com/2227-7390/10/16/3008
+
+https://appliednetsci.springeropen.com/articles/10.1007/s41109-023-00578-z
+
+https://epubs.siam.org/doi/epdf/10.1137/1.9781611972481.ch2
+
+https://pmc.ncbi.nlm.nih.gov/articles/PMC6002090/
+
+https://mitsloan.mit.edu/shared/ods/documents?PublicationDocumentID=9751
+
+https://www.mathstat.dal.ca/~tsusko/honours-theses/ziwei-wang.pdf
+
+https://sherrytowers.com/2016/02/06/stochastic-compartmental-modelling-with-stochastic-differential-equations-2/
+
+https://www.sherrytowers.com/sir_sde_example.R
+
+https://math.mcmaster.ca/~bolker/eeid/2010/Ecology/EEID2010_Simulation.pdf
+
+https://rpubs.com/choisy/sir
+
+https://daphnia.ecology.uga.edu/drakelab/wp-content/uploads/2014/07/likelihood.pdf
+

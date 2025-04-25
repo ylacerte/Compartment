@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.5.57">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>Compartment models</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+</style>
+
+
+<script src="CompartmentModel_files/libs/clipboard/clipboard.min.js"></script>
+<script src="CompartmentModel_files/libs/quarto-html/quarto.js"></script>
+<script src="CompartmentModel_files/libs/quarto-html/popper.min.js"></script>
+<script src="CompartmentModel_files/libs/quarto-html/tippy.umd.min.js"></script>
+<script src="CompartmentModel_files/libs/quarto-html/anchor.min.js"></script>
+<link href="CompartmentModel_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="CompartmentModel_files/libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="CompartmentModel_files/libs/bootstrap/bootstrap.min.js"></script>
+<link href="CompartmentModel_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="CompartmentModel_files/libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+<script src="CompartmentModel_files/libs/kePrint-0.0.1/kePrint.js"></script>
+
+<link href="CompartmentModel_files/libs/lightable-0.0.1/lightable.css" rel="stylesheet">
+
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN") {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+</head>
+
+<body class="fullcontent">
+
+<div id="quarto-content" class="page-columns page-rows-contents page-layout-article">
+
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Compartment models</h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<p>This post is written with R Quarto, an open-source scientific and technical publishing system. The code is available at <a href="https://github.com/ylacerte/Noise">https://github.com/ylacerte/</a><a href="https://github.com/ylacerte/Compartment/">Compartments</a></p>
+<section id="motivation" class="level2">
+<h2 class="anchored" data-anchor-id="motivation">Motivation</h2>
+<p>The primary objective is to understand fundamental aspects of compartment models. A compartmental model is a representation of a complex system based on the division of this system in functional compartments, and model the movement and transformation of substances or entities within a system.</p>
+<p>Some applications include:</p>
+<ul>
+<li><p>Fluid flow in chemical engineering,</p></li>
+<li><p>Risk propagation in supply chains,</p></li>
+<li><p>The spread of malware in networks,</p></li>
+<li><p>Physical system state behavior (e.g.&nbsp;working, failing, repaired)</p></li>
+</ul>
+<p>Compartments are defined as stand-alone entities, and flows in and out of each component need to be well understood, typically via differential equations.</p>
+<p><b><i>Compartments can be physical boundaries. Think of aircraft traffic flow in and out of an airport. Compartments can be runways, taxiways and aprons. A runway is where aircraft take off and land. A taxiway is the pathway for aircraft to move between runways and other areas of the airport. An apron is the area where aircraft are parked, serviced, and prepared for flights. Insights into the capacity of each compartment and flow in and out of each compartment can be gained from such models. Congestion can be predicted (compartments nearing capacity, or actual flow rates less than expected). Actions can then be taken to route aircraft toward less congested compartments.</i></b></p>
+<p>Consider a route from apron to taxiway to runway, thus a system made up of three compartments, each consisting of aircraft. The contents of a compartment changes as a response to an input or an output. The net rate of change (i.e.&nbsp;the difference between input and output), is the basis for writing the governing differential equation(s) for each compartment.</p>
+<p>The airport compartment model is based on the epidemiological model called SIR. We will augment the model in three different directions. We will fit the model with actual data and assess system congestion.</p>
+</section>
+<section id="an-example-model-with-3-compartments" class="level2">
+<h2 class="anchored" data-anchor-id="an-example-model-with-3-compartments">An example model with 3 compartments</h2>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="CompartmentModel_files/figure-html/unnamed-chunk-1-1.png" class="img-fluid figure-img" width="576"></p>
+</figure>
+</div>
+</div>
+</div>
+<p><span class="math inline">\(\large{x_{in}}\)</span>, <span class="math inline">\(\large{y_{in}}\)</span>, <span class="math inline">\(\large{x_{out}}\)</span>, and <span class="math inline">\(\large{y_{out}}\)</span> are exogenous flows.</p>
+<p>There are no population constraints, i.e.&nbsp;occupancy in a compartment can be negative.</p>
+<p><span class="math inline">\(\large{\alpha}\)</span> and <span class="math inline">\(\large{\beta}\)</span> are flows between compartments.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 32%">
+<col style="width: 67%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Solve the ODE system via the ode function from deSolve package</th>
+<th>Given</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><p><span class="math inline">\(\large{\frac{dX}{dt} = x_{in} - x_{out} - \alpha X}\)</span></p>
+<p><span class="math inline">\(\large{\frac{dY}{dt} = y_{in} - y_{out} + \alpha X - \beta Y}\)</span></p>
+<p><span class="math inline">\(\large{\frac{dZ}{dt} = \beta Y}\)</span></p></td>
+<td><p>parameters: <span class="math inline">\(\large{\alpha=0.5}\)</span>, <span class="math inline">\(\large{\beta=0.1}\)</span>, <span class="math inline">\(\large{x_{in}=1}\)</span>, <span class="math inline">\(\large{x_{out}=2}\)</span>, <span class="math inline">\(\large{y_{in}=2}\)</span>, <span class="math inline">\(\large{y_{out}=1}\)</span></p>
+<p>initial occupancy: <span class="math inline">\(\large{X=8}\)</span>, <span class="math inline">\(\large{Y=2}\)</span>, <span class="math inline">\(\large{Z=0}\)</span></p></td>
+</tr>
+</tbody>
+</table>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="CompartmentModel_files/figure-html/unnamed-chunk-2-1.png" class="img-fluid figure-img" width="960"></p>
+</figure>
+</div>
+</div>
+</div>
+<p><br>
+</p>
+</section>
+<section id="basic-model" class="level2">
+<h2 class="anchored" data-anchor-id="basic-model">Basic model</h2>
+<p>This model modifies the example:</p>
+<ul>
+<li><p>There are no exogenous flows.</p></li>
+<li><p>The population is constrained, N is introduced to reflect a fixed population in the model.</p></li>
+</ul>
+<p>This model is a “disguised” SIR model, i.e.&nbsp;“SIR” has been replaced with “ATR” (Apron, Taxiway and Runway).</p>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="CompartmentModel_files/figure-html/unnamed-chunk-3-1.png" class="img-fluid figure-img" width="576"></p>
+</figure>
+</div>
+</div>
+</div>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 51%">
+<col style="width: 48%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Solve the ODE system</th>
+<th>Given</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><p><span class="math inline">\(\large{\frac{dA}{dt} = \frac{-\beta T A}{N}}\)</span></p>
+<p><span class="math inline">\(\large{\frac{dT}{dt} = \frac{\beta T A}{N} - \delta T}\)</span></p>
+<p><span class="math inline">\(\large{\frac{dR}{dt} = \delta T}\)</span></p>
+<p>Where:</p>
+<ul>
+<li><p><span class="math inline">\(\large{\beta T / N}\)</span> is the flow from Apron to Taxiway</p></li>
+<li><p><span class="math inline">\(\large{T/N}\)</span> is the fraction of aircraft on the Taxiway</p></li>
+<li><p><span class="math inline">\(\large{\delta}\)</span> is the flow from Taxiway to Runway</p></li>
+<li><p><span class="math inline">\(\large{N=A+T+R}\)</span> is the total number of aircraft in the model.</p></li>
+</ul></td>
+<td><p>parameters: <span class="math inline">\(\large{\beta=0.5}\)</span>, <span class="math inline">\(\large{\delta=0.1}\)</span></p>
+<p>initial occupancy: <span class="math inline">\(\large{A=8}\)</span>, <span class="math inline">\(\large{T=2}\)</span>, <span class="math inline">\(\large{R=0}\)</span></p></td>
+</tr>
+</tbody>
+</table>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="CompartmentModel_files/figure-html/unnamed-chunk-4-1.png" class="img-fluid figure-img" width="960"></p>
+</figure>
+</div>
+</div>
+</div>
+<p><br>
+</p>
+</section>
+<section id="birth-death-model" class="level2">
+<h2 class="anchored" data-anchor-id="birth-death-model">Birth / death model</h2>
+<p>This model modifies the example:</p>
+<ul>
+<li><p>The airport compartment model does not have to be a closed system. There are exogenous flows representing aircraft entering and leaving the system (birth and death). A proportion of the population is introduced in compartment A. Occupancy of each compartment is reduced by a corresponding proportion.</p></li>
+<li><p>The population is constrained the same way as the basic model.</p></li>
+</ul>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="CompartmentModel_files/figure-html/unnamed-chunk-5-1.png" class="img-fluid figure-img" width="768"></p>
+</figure>
+</div>
+</div>
+</div>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 46%">
+<col style="width: 53%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Solve the ODE system</th>
+<th>Given</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><p><span class="math inline">\(\large{\mu}\)</span> = birth rate = death rate</p>
+<p><span class="math inline">\(\large{\frac{dA}{dt} = \mu N - \frac{-\beta T A}{N} - \mu A}\)</span></p>
+<p><span class="math inline">\(\large{\frac{dT}{dt} = \frac{\beta T A}{N} - \delta T - \mu T}\)</span></p>
+<p><span class="math inline">\(\large{\frac{dR}{dt} = \delta T - \mu R}\)</span></p></td>
+<td><p>parameters: <span class="math inline">\(\large{\mu=0.02}\)</span>, <span class="math inline">\(\large{\beta=1000}\)</span>, <span class="math inline">\(\large{\delta=28}\)</span></p>
+<p>initial occupancy: <span class="math inline">\(\large{A=8}\)</span>, <span class="math inline">\(\large{T=2}\)</span>, <span class="math inline">\(\large{R=0}\)</span></p></td>
+</tr>
+</tbody>
+</table>
+<p>Only the Taxiway is plotted below, with the y-axis plotted on a log scale. Notice damped oscillations toward an equilibrium.</p>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="CompartmentModel_files/figure-html/unnamed-chunk-6-1.png" class="img-fluid figure-img" width="960"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="seasonal-model" class="level2">
+<h2 class="anchored" data-anchor-id="seasonal-model">Seasonal model</h2>
+<p>This model modifies the birth/death model by making <span class="math inline">\(\large{\beta}\)</span> vary over time, <span class="math inline">\(\large{\beta(t) = \beta_0 + \beta_1 cos(2 \pi t)}\)</span>.</p>
+<p>System utilization is not the same throughout the day, e.g.&nbsp;consider difference between day and night operations.</p>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="CompartmentModel_files/figure-html/unnamed-chunk-7-1.png" class="img-fluid figure-img" width="768"></p>
+</figure>
+</div>
+</div>
+</div>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 41%">
+<col style="width: 58%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Solve the ODE system</th>
+<th>Given</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><p><span class="math inline">\(\large{\frac{dA}{dt} = \mu N - \frac{-\beta (t) T A}{N} - \mu A}\)</span></p>
+<p><span class="math inline">\(\large{\frac{dT}{dt} = \frac{\beta(t) T A}{N} - \delta T - \mu T}\)</span></p>
+<p><span class="math inline">\(\large{\frac{dR}{dt} = \delta T - \mu R}\)</span></p></td>
+<td><p>parameters: <span class="math inline">\(\large{\mu}=.02\)</span>, <span class="math inline">\(\large{\delta}=28\)</span>, <span class="math inline">\(\large{\beta_0}=1000\)</span>, <span class="math inline">\(\large{\beta_1}=400\)</span></p>
+<p>initial occupancy: <span class="math inline">\(\large{A=8}\)</span>, <span class="math inline">\(\large{T=2}\)</span>, <span class="math inline">\(\large{R=0}\)</span></p></td>
+</tr>
+</tbody>
+</table>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="CompartmentModel_files/figure-html/unnamed-chunk-8-1.png" class="img-fluid figure-img" width="960"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="stochastic-model" class="level2">
+<h2 class="anchored" data-anchor-id="stochastic-model">Stochastic model</h2>
+<p>The basic model is transformed into a system of stochastic differential equations (SDE). We can simulate the SDE using the yuima package (<a href="https://yuimaproject.com/)." class="uri">https://yuimaproject.com/).</a></p>
+<p>Focus on stochastic differential equations of the form <span class="math inline">\(dX_t = a(t, X_t) dt + b(t, X_t) dW_t\)</span>, where</p>
+<ul>
+<li><span class="math inline">\(dW_t\)</span> is a standard Brownian motion,</li>
+<li><span class="math inline">\(a(t, X_t)\)</span> is the drift term, and</li>
+<li><span class="math inline">\(b(t, X_t)\)</span> is the diffusion term.</li>
+</ul>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 65%">
+<col style="width: 34%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Solve the SDE system</th>
+<th>Given</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><p><span class="math inline">\(\large{\frac{dA}{dt} = \frac{-\beta T A}{N} - \sqrt{\frac{\beta T A}{N}}W_1}\)</span></p>
+<p><span class="math inline">\(\large{\frac{dT}{dt} = \frac{\beta T A}{N} - \delta T + \sqrt{\frac{\beta T A}{N}}W_1 - \sqrt{\delta I}W_2}\)</span></p>
+<p><span class="math inline">\(\large{\frac{dR}{dt} = \delta T + \sqrt{\delta T}W_2}\)</span></p></td>
+<td><p><strong>parameters</strong>: <span class="math inline">\(\beta = 0.5\)</span>, <span class="math inline">\(\delta = 0.1\)</span></p>
+<p><strong>initial occupancy</strong>: <span class="math inline">\(Apron=8\)</span>, <span class="math inline">\(Taxiway=2\)</span>, <span class="math inline">\(Runway=0\)</span></p></td>
+</tr>
+</tbody>
+</table>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="CompartmentModel_files/figure-html/unnamed-chunk-9-1.png" class="img-fluid figure-img" width="960"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Occupancy of each compartment at the end of the simulation.</p>
+<div class="cell">
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<thead>
+<tr class="header">
+<th style="text-align: right;">t</th>
+<th style="text-align: right;">Apron</th>
+<th style="text-align: right;">Taxiway</th>
+<th style="text-align: right;">Runway</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">40</td>
+<td style="text-align: right;">0.2455029</td>
+<td style="text-align: right;">0.1816637</td>
+<td style="text-align: right;">9.572833</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="parameter-estimation" class="level2">
+<h2 class="anchored" data-anchor-id="parameter-estimation">Parameter estimation</h2>
+<p>The yuima package has functions (lse and qmle) to estimate model parameters. Using the lse function and the above simulated data, the following parameters are estimated.</p>
+<div class="cell">
+<div class="cell-output-display">
+<table class="table caption-top table-sm table-striped small" data-quarto-postprocess="true">
+<thead>
+<tr class="header">
+<th style="text-align: right;" data-quarto-table-cell-role="th">beta</th>
+<th style="text-align: right;" data-quarto-table-cell-role="th">delta</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">0.5498805</td>
+<td style="text-align: right;">0.5498805</td>
+</tr>
+</tbody>
+</table>
+
+
+</div>
+</div>
+<p><br>
+Generally, we would collect operational data, and compare expected vs actual parameters. Operations can then be adjusted to address congestion problems. Say we collect data on Taxiway utilization. We estimate the model parameters (<span class="math inline">\(\large{\beta}\)</span> and <span class="math inline">\(\large{\delta}\)</span>) associated with the Taxiway equation, i.e.&nbsp;<span class="math inline">\(\large{\frac{dT}{dt} = \frac{\beta T A}{N} - \delta T}\)</span> via the optim() function. We define two functions to minimize/maximize:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 37%">
+<col style="width: 62%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>least squares</th>
+<th>maximum likelihood</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><p>The sum of squares of the data given the model and its parameters: <span class="math inline">\(SS = \sum (data-pred)^2\)</span></p>
+<p>where:</p>
+<ul>
+<li>pred is the result of the model at each time</li>
+<li>data is the value of the data at each time</li>
+</ul>
+<p>optim(params, SS) finds the parameters that minimize SS.</p>
+<p>params are initial values of the parameters to be optimized.</p></td>
+<td><p>The log-likelihood of the data given the model and its parameters: <span class="math inline">\(LL=\sum dnorm(x, mean, sd,log)\)</span></p>
+<p>where:</p>
+<ul>
+<li>dnorm is the value of the probability density function for the normal distribution given parameters for x (data point), mean, and sd (standard deviation)</li>
+<li>log=TRUE means probabilities p are given as log(p)</li>
+<li>mean=pred is the result of the model at each time</li>
+<li>x=the value of the data at each time</li>
+<li>sd=1 is the standard deviation</li>
+</ul>
+<p>optim(params, LL) finds the parameters that maximize LL.</p></td>
+</tr>
+</tbody>
+</table>
+<div class="cell">
+<div class="cell-output-display">
+<table class="table caption-top table-sm table-striped small" data-quarto-postprocess="true">
+<thead>
+<tr class="header">
+<th style="text-align: left;" data-quarto-table-cell-role="th"></th>
+<th style="text-align: right;" data-quarto-table-cell-role="th">beta</th>
+<th style="text-align: right;" data-quarto-table-cell-role="th">delta</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">least_squares</td>
+<td style="text-align: right;">0.5047691</td>
+<td style="text-align: right;">0.0938816</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">mle</td>
+<td style="text-align: right;">0.5047691</td>
+<td style="text-align: right;">0.0938816</td>
+</tr>
+</tbody>
+</table>
+
+
+</div>
+</div>
+<p>Maximum Likelihood Estimator and Least-Squares are essentially identical when the errors are normally distributed with constant variance.</p>
+<p><br>
+</p>
+<p>The optimized model is shown below, with the sampled data.</p>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="CompartmentModel_files/figure-html/unnamed-chunk-13-1.png" class="img-fluid figure-img" width="960"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="assessment" class="level2">
+<h2 class="anchored" data-anchor-id="assessment">Assessment</h2>
+<p>The assessment consists of finding out where there are areas of posible congestion. Some questions that could be asked when assessing the model vs actual data include:</p>
+<ul>
+<li><p>Does the historical model fit the data? Which parameter(s) are very different?</p></li>
+<li><p>Is Taxiway occupancy too high (i.e.&nbsp;exceeds a given threshold)?</p></li>
+<li><p>Is aircraft departure rate (based on Runway occupancy changes over time) adequate?</p></li>
+<li><p>Should we reduce <span class="math inline">\(\large{\beta}\)</span> or increase <span class="math inline">\(\large{\delta}\)</span> to decrease Taxiway occupancy?</p></li>
+<li><p>Should we decrease <span class="math inline">\(\large{\delta}\)</span> to decrease departure rate?</p></li>
+</ul>
+<p>This model is focused on departure compartments. It is not difficult to add new compartments to the model include departures.</p>
+</section>
+<section id="references" class="level2">
+<h2 class="anchored" data-anchor-id="references">References</h2>
+<p><a href="https://www.mdpi.com/2227-7390/10/16/3008" class="uri">https://www.mdpi.com/2227-7390/10/16/3008</a></p>
+<p><a href="https://appliednetsci.springeropen.com/articles/10.1007/s41109-023-00578-z" class="uri">https://appliednetsci.springeropen.com/articles/10.1007/s41109-023-00578-z</a></p>
+<p><a href="https://epubs.siam.org/doi/epdf/10.1137/1.9781611972481.ch2" class="uri">https://epubs.siam.org/doi/epdf/10.1137/1.9781611972481.ch2</a></p>
+<p><a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC6002090/" class="uri">https://pmc.ncbi.nlm.nih.gov/articles/PMC6002090/</a></p>
+<p><a href="https://mitsloan.mit.edu/shared/ods/documents?PublicationDocumentID=9751" class="uri">https://mitsloan.mit.edu/shared/ods/documents?PublicationDocumentID=9751</a></p>
+<p><a href="https://www.mathstat.dal.ca/~tsusko/honours-theses/ziwei-wang.pdf" class="uri">https://www.mathstat.dal.ca/~tsusko/honours-theses/ziwei-wang.pdf</a></p>
+<p><a href="https://sherrytowers.com/2016/02/06/stochastic-compartmental-modelling-with-stochastic-differential-equations-2/" class="uri">https://sherrytowers.com/2016/02/06/stochastic-compartmental-modelling-with-stochastic-differential-equations-2/</a></p>
+<p><a href="https://www.sherrytowers.com/sir_sde_example.R" class="uri">https://www.sherrytowers.com/sir_sde_example.R</a></p>
+<p><a href="https://math.mcmaster.ca/~bolker/eeid/2010/Ecology/EEID2010_Simulation.pdf" class="uri">https://math.mcmaster.ca/~bolker/eeid/2010/Ecology/EEID2010_Simulation.pdf</a></p>
+<p><a href="https://rpubs.com/choisy/sir" class="uri">https://rpubs.com/choisy/sir</a></p>
+<p><a href="https://daphnia.ecology.uga.edu/drakelab/wp-content/uploads/2014/07/likelihood.pdf" class="uri">https://daphnia.ecology.uga.edu/drakelab/wp-content/uploads/2014/07/likelihood.pdf</a></p>
+</section>
+
+</main>
+<!-- /main column -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const isCodeAnnotation = (el) => {
+    for (const clz of el.classList) {
+      if (clz.startsWith('code-annotation-')) {                     
+        return true;
+      }
+    }
+    return false;
+  }
+  const onCopySuccess = function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  }
+  const getTextToCopy = function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+    text: getTextToCopy
+  });
+  clipboard.on('success', onCopySuccess);
+  if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+    // For code content inside modals, clipBoardJS needs to be initialized with a container option
+    // TODO: Check when it could be a function (https://github.com/zenorocha/clipboard.js/issues/860)
+    const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+      text: getTextToCopy,
+      container: window.document.getElementById('quarto-embedded-source-code-modal')
+    });
+    clipboardModal.on('success', onCopySuccess);
+  }
+    var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+    var mailtoRegex = new RegExp(/^mailto:/);
+      var filterRegex = new RegExp('/' + window.location.host + '/');
+    var isInternal = (href) => {
+        return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+    }
+    // Inspect non-navigation links and adorn them if external
+ 	var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+    for (var i=0; i<links.length; i++) {
+      const link = links[i];
+      if (!isInternal(link.href)) {
+        // undo the damage that might have been done by quarto-nav.js in the case of
+        // links that we want to consider external
+        if (link.dataset.originalHref !== undefined) {
+          link.href = link.dataset.originalHref;
+        }
+      }
+    }
+  function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+    const config = {
+      allowHTML: true,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start',
+    };
+    if (contentFn) {
+      config.content = contentFn;
+    }
+    if (onTriggerFn) {
+      config.onTrigger = onTriggerFn;
+    }
+    if (onUntriggerFn) {
+      config.onUntrigger = onUntriggerFn;
+    }
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      if (note) {
+        return note.innerHTML;
+      } else {
+        return "";
+      }
+    });
+  }
+  const xrefs = window.document.querySelectorAll('a.quarto-xref');
+  const processXRef = (id, note) => {
+    // Strip column container classes
+    const stripColumnClz = (el) => {
+      el.classList.remove("page-full", "page-columns");
+      if (el.children) {
+        for (const child of el.children) {
+          stripColumnClz(child);
+        }
+      }
+    }
+    stripColumnClz(note)
+    if (id === null || id.startsWith('sec-')) {
+      // Special case sections, only their first couple elements
+      const container = document.createElement("div");
+      if (note.children && note.children.length > 2) {
+        container.appendChild(note.children[0].cloneNode(true));
+        for (let i = 1; i < note.children.length; i++) {
+          const child = note.children[i];
+          if (child.tagName === "P" && child.innerText === "") {
+            continue;
+          } else {
+            container.appendChild(child.cloneNode(true));
+            break;
+          }
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(container);
+        }
+        return container.innerHTML
+      } else {
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        return note.innerHTML;
+      }
+    } else {
+      // Remove any anchor links if they are present
+      const anchorLink = note.querySelector('a.anchorjs-link');
+      if (anchorLink) {
+        anchorLink.remove();
+      }
+      if (window.Quarto?.typesetMath) {
+        window.Quarto.typesetMath(note);
+      }
+      // TODO in 1.5, we should make sure this works without a callout special case
+      if (note.classList.contains("callout")) {
+        return note.outerHTML;
+      } else {
+        return note.innerHTML;
+      }
+    }
+  }
+  for (var i=0; i<xrefs.length; i++) {
+    const xref = xrefs[i];
+    tippyHover(xref, undefined, function(instance) {
+      instance.disable();
+      let url = xref.getAttribute('href');
+      let hash = undefined; 
+      if (url.startsWith('#')) {
+        hash = url;
+      } else {
+        try { hash = new URL(url).hash; } catch {}
+      }
+      if (hash) {
+        const id = hash.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note !== null) {
+          try {
+            const html = processXRef(id, note.cloneNode(true));
+            instance.setContent(html);
+          } finally {
+            instance.enable();
+            instance.show();
+          }
+        } else {
+          // See if we can fetch this
+          fetch(url.split('#')[0])
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.getElementById(id);
+            if (note !== null) {
+              const html = processXRef(id, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      } else {
+        // See if we can fetch a full url (with no hash to target)
+        // This is a special case and we should probably do some content thinning / targeting
+        fetch(url)
+        .then(res => res.text())
+        .then(html => {
+          const parser = new DOMParser();
+          const htmlDoc = parser.parseFromString(html, "text/html");
+          const note = htmlDoc.querySelector('main.content');
+          if (note !== null) {
+            // This should only happen for chapter cross references
+            // (since there is no id in the URL)
+            // remove the first header
+            if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+              note.children[0].remove();
+            }
+            const html = processXRef(null, note);
+            instance.setContent(html);
+          } 
+        }).finally(() => {
+          instance.enable();
+          instance.show();
+        });
+      }
+    }, function(instance) {
+    });
+  }
+      let selectedAnnoteEl;
+      const selectorForAnnotation = ( cell, annotation) => {
+        let cellAttr = 'data-code-cell="' + cell + '"';
+        let lineAttr = 'data-code-annotation="' +  annotation + '"';
+        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+        return selector;
+      }
+      const selectCodeLines = (annoteEl) => {
+        const doc = window.document;
+        const targetCell = annoteEl.getAttribute("data-target-cell");
+        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+        const lineIds = lines.map((line) => {
+          return targetCell + "-" + line;
+        })
+        let top = null;
+        let height = null;
+        let parent = null;
+        if (lineIds.length > 0) {
+            //compute the position of the single el (top and bottom and make a div)
+            const el = window.document.getElementById(lineIds[0]);
+            top = el.offsetTop;
+            height = el.offsetHeight;
+            parent = el.parentElement.parentElement;
+          if (lineIds.length > 1) {
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+            height = bottom - top;
+          }
+          if (top !== null && height !== null && parent !== null) {
+            // cook up a div (if necessary) and position it 
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            div.style.top = top - 2 + "px";
+            div.style.height = height + 4 + "px";
+            div.style.left = 0;
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            gutterDiv.style.top = top - 2 + "px";
+            gutterDiv.style.height = height + 4 + "px";
+          }
+          selectedAnnoteEl = annoteEl;
+        }
+      };
+      const unselectCodeLines = () => {
+        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+        elementsIds.forEach((elId) => {
+          const div = window.document.getElementById(elId);
+          if (div) {
+            div.remove();
+          }
+        });
+        selectedAnnoteEl = undefined;
+      };
+        // Handle positioning of the toggle
+    window.addEventListener(
+      "resize",
+      throttle(() => {
+        elRect = undefined;
+        if (selectedAnnoteEl) {
+          selectCodeLines(selectedAnnoteEl);
+        }
+      }, 10)
+    );
+    function throttle(fn, ms) {
+    let throttle = false;
+    let timer;
+      return (...args) => {
+        if(!throttle) { // first call gets through
+            fn.apply(this, args);
+            throttle = true;
+        } else { // all the others get throttled
+            if(timer) clearTimeout(timer); // cancel #2
+            timer = setTimeout(() => {
+              fn.apply(this, args);
+              timer = throttle = false;
+            }, ms);
+        }
+      };
+    }
+      // Attach click handler to the DT
+      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+      for (const annoteDlNode of annoteDls) {
+        annoteDlNode.addEventListener('click', (event) => {
+          const clickedEl = event.target;
+          if (clickedEl !== selectedAnnoteEl) {
+            unselectCodeLines();
+            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+            if (activeEl) {
+              activeEl.classList.remove('code-annotation-active');
+            }
+            selectCodeLines(clickedEl);
+            clickedEl.classList.add('code-annotation-active');
+          } else {
+            // Unselect the line
+            unselectCodeLines();
+            clickedEl.classList.remove('code-annotation-active');
+          }
+        });
+      }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>
